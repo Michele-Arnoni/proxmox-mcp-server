@@ -56,3 +56,7 @@ Developed as a Proof of Concept (PoC) for a university thesis, this project focu
   
 7. **Available Tools:**
    * list_vms: Inspects the Proxmox node and retrieves a list of all Virtual Machines (QEMU) and Containers (LXC), including their IDs, names, and current power status.
+   * manage_vm_state: Manages the Proxmox instances life cycle, using "start", "reboot" and "stop" commands.
+   * clone_resource: Create a Proxmox instance from another, cloning it.
+   * destroy_resource: Destroy a Proxmox instance.
+   * execute_cmd: Execute whatever CLI command on a node by SSHv2.
