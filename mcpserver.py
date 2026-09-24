@@ -100,7 +100,7 @@ def manage_vm_state(node: str, vm_id: int, resource_type: str, action: str) -> s
         return f"Errore durante l'esecuzione dell'azione {action}: {str(e)}"
     
 
-#UC2 : Provisioning, creazione di un'istanza di virtualizzazione tramite clonazione di una già esistente
+#UC2 : Provisioning, creazione di un'istanza di virtualizzazione tramite clonazione di una già esistente (implementato paradigma humain-in-the-loop)
 @mcp.tool()
 def clone_resource(node: str, source_vmid: int, new_vmid: int, new_name: str, resource_type: str) -> str:
     """
@@ -129,6 +129,37 @@ def clone_resource(node: str, source_vmid: int, new_vmid: int, new_name: str, re
     except Exception as e:
         return f"Errore durante il provisioning della risorsa: {str(e)}"
 
+#UC3: Eliminazione di una istanza di virtualizzazione (implementato paradigma humain-in-the-loop)
+@mcp.tool()
+def destroy_resource(node: str, vm_id: int, resource_type: str) -> str:
+    """
+    [ATTENZIONE: AZIONE IRREVERSIBILE E DISTRUTTIVA - HUMAN-IN-THE-LOOP ESTREMO]
+    Elimina (Destroy) definitivamente una macchina virtuale o container LXC dal disco.
+    
+    VINCOLI OPERATIVI OBBLIGATORI:
+    1. Prima di invocare questo tool, DEVI fermare la generazione, avvisare l'utente 
+        che i dati andranno persi per sempre e CHIEDERE L'AUTORIZZAZIONE ESPLICITA 
+        (es. "Sei sicuro di voler distruggere definitivamente la VM 999?").
+    2. Regola di Proxmox: La macchina DEVE essere spenta prima di poter essere eliminata.
+        Se è accesa, informati con l'utente e usa il tool 'manage_vm_state' per spegnerla.
+    NON ESEGUIRE MAI QUESTO TOOL SENZA CHIARA CONFERMA.
+    """
+    proxmox = get_proxmox_client()
+    
+    try:
+        if resource_type.lower() == "vm":
+            # API per distruggere una QEMU
+            proxmox.nodes(node).qemu(vm_id).delete()
+        elif resource_type.lower() == "lxc":
+            # API per distruggere un LXC
+            proxmox.nodes(node).lxc(vm_id).delete()
+        else:
+            return "Errore: 'resource_type' deve essere 'vm' o 'lxc'."
+            
+        return f"[Azione Distruttiva Completata] La {resource_type.upper()} {vm_id} e i suoi dischi sono stati rimossi dal nodo {node}."
+        
+    except Exception as e:
+        return f"Errore durante l'eliminazione: {str(e)}\n(Suggerimento per l'AI: Assicurati che la macchina sia completamente SPENTA usando manage_vm_state prima di invocare destroy_resource)."
     
 #UC3: Esecuzione di comandi arbitrari su istanze di virtualizzazione (implementato paradigma humain-in-the-loop)
 @mcp.tool()
