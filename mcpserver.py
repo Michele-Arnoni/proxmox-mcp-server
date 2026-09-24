@@ -58,6 +58,47 @@ def list_vms() -> str:
     except Exception as e:
         return f"Errore durante la comunicazione con Proxmox: {str(e)}"
 
+#UC2: Gestione del ciclo di vita e provisioning delle istanze
+@mcp.tool()
+def manage_vm_state(node: str, vm_id: int, resource_type: str, action: str) -> str:
+    """
+    [ATTENZIONE: AZIONE CRITICA - HUMAN-IN-THE-LOOP RICHIESTO]
+    Gestisce il ciclo di vita (accensione, spegnimento, riavvio) di una VM o LXC.
+    Azioni permesse: 'start', 'stop', 'reboot'.
+    
+    VINCOLO OPERATIVO OBBLIGATORIO:
+    Prima di invocare questo tool (specialmente per 'stop' o 'reboot'), DEVI fermare
+    la generazione, informare l'utente di quale azione stai per compiere su quale
+    macchina e CHIEDERE ESPLICITAMENTE LA SUA AUTORIZZAZIONE.
+    Non agire in modo distruttivo senza consenso.
+    """
+    proxmox = get_proxmox_client()
+    action = action.lower()
+    
+    if action not in ["start", "stop", "reboot"]:
+        return "Errore: Azione non supportata. Usa 'start', 'stop' o 'reboot'."
+    
+    try:
+        if resource_type.lower() == "vm":
+            api_path = proxmox.nodes(node).qemu(vm_id).status
+        elif resource_type.lower() == "lxc":
+            api_path = proxmox.nodes(node).lxc(vm_id).status
+        else:
+            return "Errore: 'resource_type' deve essere 'vm' o 'lxc'."
+        
+        # Invio dinamico del comando POST all'API
+        if action == "start":
+            api_path.start.post()
+        elif action == "stop":
+            api_path.stop.post()
+        elif action == "reboot":
+            api_path.reboot.post()
+            
+        return f"[Eseguito con successo su Proxmox]\nComando '{action}' inviato alla {resource_type.upper()} {vm_id}."
+        
+    except Exception as e:
+        return f"Errore durante l'esecuzione dell'azione {action}: {str(e)}"
+    
 
 #UC3: Esecuzione di comandi arbitrari su istanze di virtualizzazione (implementato paradigma humain-in-the-loop)
 @mcp.tool()
