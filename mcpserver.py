@@ -100,6 +100,36 @@ def manage_vm_state(node: str, vm_id: int, resource_type: str, action: str) -> s
         return f"Errore durante l'esecuzione dell'azione {action}: {str(e)}"
     
 
+#UC2 : Provisioning, creazione di un'istanza di virtualizzazione tramite clonazione di una già esistente
+@mcp.tool()
+def clone_resource(node: str, source_vmid: int, new_vmid: int, new_name: str, resource_type: str) -> str:
+    """
+    [ATTENZIONE: PROVISIONING INFRASTRUTTURA - HUMAN-IN-THE-LOOP RICHIESTO]
+    Clona una macchina virtuale o container LXC esistente (o un template) per creare una nuova istanza.
+    
+    VINCOLO OPERATIVO OBBLIGATORIO:
+    Prima di invocare questo tool, DEVI fermare la generazione, spiegare all'utente 
+    che stai per creare una nuova risorsa (indicando l'ID sorgente, il nuovo ID e il nuovo nome) 
+    e CHIEDERE LA SUA AUTORIZZAZIONE (es. "Procedo con la creazione della VM?").
+    """
+    proxmox = get_proxmox_client()
+    
+    try:
+        if resource_type.lower() == "vm":
+            # Per QEMU il nome si passa come parametro 'name'
+            proxmox.nodes(node).qemu(source_vmid).clone.post(newid=new_vmid, name=new_name)
+        elif resource_type.lower() == "lxc":
+            # Per LXC il nome si passa come parametro 'hostname'
+            proxmox.nodes(node).lxc(source_vmid).clone.post(newid=new_vmid, hostname=new_name)
+        else:
+            return "Errore: 'resource_type' deve essere 'vm' o 'lxc'."
+            
+        return f"[Provisioning Avviato su Proxmox]\nRichiesta di clonazione della {resource_type.upper()} {source_vmid} nel nuovo ID {new_vmid} ({new_name}) inviata con successo.\nNota: l'operazione avviene in background, usa list_vms per verificarne la comparsa."
+        
+    except Exception as e:
+        return f"Errore durante il provisioning della risorsa: {str(e)}"
+
+    
 #UC3: Esecuzione di comandi arbitrari su istanze di virtualizzazione (implementato paradigma humain-in-the-loop)
 @mcp.tool()
 def execute_cmd(node: str, vm_id: int, command: str) -> str:
