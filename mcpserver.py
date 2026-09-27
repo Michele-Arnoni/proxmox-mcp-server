@@ -60,18 +60,19 @@ def list_vms() -> str:
 
 #UC2: Gestione del ciclo di vita e provisioning delle istanze
 @mcp.tool()
-def manage_vm_state(node: str, vm_id: int, resource_type: str, action: str) -> str:
+def manage_vm_state(node: str, vm_id: int, resource_type: str, action: str, confirm: bool = False) -> str:
     """
     [ATTENZIONE: AZIONE CRITICA - HUMAN-IN-THE-LOOP RICHIESTO]
     Gestisce il ciclo di vita (accensione, spegnimento, riavvio) di una VM o LXC.
     Azioni permesse: 'start', 'stop', 'reboot'.
     
-    VINCOLO OPERATIVO OBBLIGATORIO:
-    Prima di invocare questo tool (specialmente per 'stop' o 'reboot'), DEVI fermare
-    la generazione, informare l'utente di quale azione stai per compiere su quale
-    macchina e CHIEDERE ESPLICITAMENTE LA SUA AUTORIZZAZIONE.
-    Non agire in modo distruttivo senza consenso.
+    Per eseguire effettivamente l'azione, devi passare confirm=true.
+    NON passare confirm=true senza aver prima ricevuto un 'Sì' chiaro dall'utente.
     """
+
+    if not confirm:
+        return f"[PENDING_CONFIRMATION] Azione bloccata dal Server MCP. Avvisa l'utente che l'operazione è critica e chiedi conferma. Se l'utente approva, invoca nuovamente il tool con 'confirm': true."
+    
     proxmox = get_proxmox_client()
     action = action.lower()
     
@@ -102,16 +103,21 @@ def manage_vm_state(node: str, vm_id: int, resource_type: str, action: str) -> s
 
 #UC2 : Provisioning, creazione di un'istanza di virtualizzazione tramite clonazione di una già esistente (implementato paradigma humain-in-the-loop)
 @mcp.tool()
-def clone_resource(node: str, source_vmid: int, new_vmid: int, new_name: str, resource_type: str) -> str:
+def clone_resource(node: str, source_vmid: int, new_vmid: int, new_name: str, resource_type: str, confirm: bool = False) -> str:
     """
     [ATTENZIONE: PROVISIONING INFRASTRUTTURA - HUMAN-IN-THE-LOOP RICHIESTO]
     Clona una macchina virtuale o container LXC esistente (o un template) per creare una nuova istanza.
     
     VINCOLO OPERATIVO OBBLIGATORIO:
-    Prima di invocare questo tool, DEVI fermare la generazione, spiegare all'utente 
-    che stai per creare una nuova risorsa (indicando l'ID sorgente, il nuovo ID e il nuovo nome) 
-    e CHIEDERE LA SUA AUTORIZZAZIONE (es. "Procedo con la creazione della VM?").
+    Prima di invocare questo tool, DEVI fermare la generazione, spiegare all'utente
+    che stai per creare una nuova risorsa (indicando l'ID sorgente, il nuovo ID e il nuovo nome).
+    Per eseguire effettivamente l'azione, devi passare confirm=true.
+    NON passare confirm=true senza aver prima ricevuto un 'Sì' chiaro dall'utente.
     """
+
+    if not confirm:
+        return f"[PENDING_CONFIRMATION] Azione bloccata dal Server MCP. Avvisa l'utente che l'operazione è critica e chiedi conferma. Se l'utente approva, invoca nuovamente il tool con 'confirm': true."
+    
     proxmox = get_proxmox_client()
     
     try:
@@ -131,19 +137,17 @@ def clone_resource(node: str, source_vmid: int, new_vmid: int, new_name: str, re
 
 #UC3: Eliminazione di una istanza di virtualizzazione (implementato paradigma humain-in-the-loop)
 @mcp.tool()
-def destroy_resource(node: str, vm_id: int, resource_type: str) -> str:
+def destroy_resource(node: str, vm_id: int, resource_type: str, confirm: bool = False) -> str:
     """
-    [ATTENZIONE: AZIONE IRREVERSIBILE E DISTRUTTIVA - HUMAN-IN-THE-LOOP ESTREMO]
-    Elimina (Destroy) definitivamente una macchina virtuale o container LXC dal disco.
+    [ATTENZIONE: AZIONE IRREVERSIBILE E DISTRUTTIVA]
+    Elimina definitivamente una macchina virtuale o container LXC dal disco.
+    Per eseguire effettivamente l'azione, devi passare confirm=true.
+    NON passare confirm=true senza aver prima ricevuto un 'Sì' chiaro dall'utente.
+    """
+
+    if not confirm:
+        return f"[PENDING_CONFIRMATION] Azione bloccata dal Server MCP. Avvisa l'utente che l'operazione è critica e chiedi conferma. Se l'utente approva, invoca nuovamente il tool con 'confirm': true."
     
-    VINCOLI OPERATIVI OBBLIGATORI:
-    1. Prima di invocare questo tool, DEVI fermare la generazione, avvisare l'utente 
-        che i dati andranno persi per sempre e CHIEDERE L'AUTORIZZAZIONE ESPLICITA 
-        (es. "Sei sicuro di voler distruggere definitivamente la VM 999?").
-    2. Regola di Proxmox: La macchina DEVE essere spenta prima di poter essere eliminata.
-        Se è accesa, informati con l'utente e usa il tool 'manage_vm_state' per spegnerla.
-    NON ESEGUIRE MAI QUESTO TOOL SENZA CHIARA CONFERMA.
-    """
     proxmox = get_proxmox_client()
     
     try:
@@ -163,7 +167,7 @@ def destroy_resource(node: str, vm_id: int, resource_type: str) -> str:
     
 #UC3: Esecuzione di comandi arbitrari su istanze di virtualizzazione (implementato paradigma humain-in-the-loop)
 @mcp.tool()
-def execute_cmd(node: str, vm_id: int, command: str) -> str:
+def execute_cmd(node: str, vm_id: int, command: str, confirm: bool = False) -> str:
     """
     [ATTENZIONE: AZIONE CRITICA - HUMAN-IN-THE-LOOP RICHIESTO]
     Lancia comandi arbitrari sul terminale di un container LXC tramite accesso SSH al nodo.
@@ -172,8 +176,13 @@ def execute_cmd(node: str, vm_id: int, command: str) -> str:
     Prima di invocare questo tool, DEVI fermare la generazione, spiegare all'utente 
     quale comando esatto vuoi eseguire e PERCHÉ, e chiedere esplicitamente la sua 
     autorizzazione (es. "Posso procedere con l'esecuzione di 'rm -rf /tmp/*'?").
-    NON ESEGUIRE MAI QUESTO TOOL SENZA IL CHIARO CONSENSO DELL'UTENTE.
+    Per eseguire effettivamente l'azione, devi passare confirm=true.
+    NON passare confirm=true senza aver prima ricevuto un 'Sì' chiaro dall'utente.
     """
+
+    if not confirm:
+        return f"[PENDING_CONFIRMATION] Azione bloccata dal Server MCP. Avvisa l'utente che l'operazione è critica e chiedi conferma. Se l'utente approva, invoca nuovamente il tool con 'confirm': true."
+    
     host = os.environ.get("PROXMOX_HOST")
     password = os.environ.get("PROXMOX_SSH_PASSWORD")
     
